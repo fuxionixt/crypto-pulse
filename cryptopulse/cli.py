@@ -1,3 +1,4 @@
+
 """Command-line entry point for CryptoPulse."""
 
 from rich.console import Console
