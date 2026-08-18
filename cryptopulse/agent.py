@@ -1,8 +1,18 @@
 import json
+import os
+import streamlit as st
 from anthropic import Anthropic
 from cryptopulse.fetcher import fetch_prices, DEFAULT_COINS
 
-client = Anthropic()  # reads ANTHROPIC_API_KEY from env/secrets
+
+def _get_anthropic_key() -> str | None:
+    try:
+        return st.secrets["ANTHROPIC_API_KEY"]
+    except Exception:
+        return os.environ.get("ANTHROPIC_API_KEY")
+
+
+client = Anthropic(api_key=_get_anthropic_key())
 
 TOOLS = [
     {
@@ -99,11 +109,9 @@ def ask_agent(user_query: str, holdings: dict | None = None) -> str:
         )
 
         if response.stop_reason != "tool_use":
-            # Final answer — extract and return the text
             text_blocks = [b.text for b in response.content if b.type == "text"]
             return "\n".join(text_blocks)
 
-        # Claude wants to call one or more tools
         messages.append({"role": "assistant", "content": response.content})
 
         tool_results = []
