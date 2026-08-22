@@ -1,4 +1,5 @@
 import datetime
+import os
 import pandas as pd
 import streamlit as st
 import plotly.express as px
@@ -11,6 +12,15 @@ st.title("CryptoPulse")
 st.caption("Live market snapshot, powered by CoinGecko")
 
 CURRENCY_SYMBOLS = {"usd": "$", "eur": "€", "gbp": "£"}
+
+
+def get_secret(key: str) -> str | None:
+    """Read a secret from Streamlit's secrets.toml if available, else from env vars (Railway)."""
+    try:
+        return st.secrets[key]
+    except Exception:
+        return os.environ.get(key)
+
 
 # --- Sidebar controls ---
 with st.sidebar:
@@ -30,7 +40,6 @@ with st.sidebar:
 
 symbol = CURRENCY_SYMBOLS.get(currency, "$")
 
-# Refetch if button clicked, first load, or currency changed
 currency_changed = st.session_state.get("currency") != currency
 if refresh_clicked or "prices" not in st.session_state or currency_changed:
     try:
@@ -66,7 +75,9 @@ def format_price(p: float) -> str:
 gas_data = None
 gas_error = None
 try:
-    eia_key = st.secrets["EIA_API_KEY"]
+    eia_key = get_secret("EIA_API_KEY")
+    if not eia_key:
+        raise ValueError("EIA_API_KEY not found in secrets or environment variables")
     gas_data = fetch_gas_price(eia_key)
 except Exception as exc:
     gas_error = str(exc)
@@ -171,6 +182,7 @@ if pending:
         f"Prediction locked: **{pending['coin']}** will go **{pending['direction'].upper()}** "
         f"from {symbol}{pending['price_at_bet']:.4f}. Click Refresh prices to check the result."
     )
+
 # --- Ask CryptoPulse (agent) ---
 st.divider()
 st.subheader("💬 Ask CryptoPulse")
@@ -199,6 +211,7 @@ if st.button("Ask") and user_query:
             st.write(answer)
         except Exception as exc:
             st.error(f"Agent failed: {exc}")
+
 # Resolve prediction on refresh
 if refresh_clicked and pending:
     new_price = next((r["Price"] for r in rows if r["Coin"] == pending["coin"]), None)
